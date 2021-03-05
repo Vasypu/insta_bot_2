@@ -11,7 +11,7 @@ import java.util.List;
 public class User {
 
     @Id
-    private int id;
+    private Long id;
 
     private String login;
     private String password;
@@ -20,7 +20,7 @@ public class User {
 
     public User() { }
 
-    public User(int id, String login, String password) {
+    public User(Long id, String login, String password) {
         postList = new ArrayList<>();
         this.id = id;
         this.login  = login;
@@ -43,7 +43,7 @@ public class User {
 
     public void addPost(Post post) { this.postList.add(post); }
 
-    public int getId() { return id; }
+    public Long getId() { return id; }
 
-    public void setId(int id) { this.id = id; }
+    public void setId(Long id) { this.id = id; }
 }
