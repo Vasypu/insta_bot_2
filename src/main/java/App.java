@@ -1,6 +1,6 @@
+import database.DatabaseConnector;
 import entity.Post;
 import entity.User;
-import org.apache.commons.io.FileUtils;
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
@@ -15,30 +15,27 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 
 public class App extends TelegramLongPollingBot {
-    private static EntityManagerFactory entityManagerFactory;
+    private static DatabaseConnector connector;
 
-    public App(EntityManagerFactory entityManagerFactory) {
-        this.entityManagerFactory = entityManagerFactory;
+    public App(DatabaseConnector connector) {
+        this.connector = connector;
     }
 
     public static void main(String[] args) throws TelegramApiRequestException {
-        entityManagerFactory = Persistence.createEntityManagerFactory("instabot");
+        connector = new DatabaseConnector("instabot");
 
         ApiContextInitializer.init();
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi();
-        telegramBotsApi.registerBot(new App(entityManagerFactory));
+        telegramBotsApi.registerBot(new App(connector));
     }
 
     @Override
     public void onUpdateReceived(Update update) {
             Long userId = update.getMessage().getChatId();
-            EntityManager manager = entityManagerFactory.createEntityManager();
-            manager.getTransaction().begin();
-            User user = manager.find(User.class, userId);
+            connector.startTransaction();
+            User user = connector.getUserService().findById(userId);
             System.out.println("Message " + update.getMessage().getText());
             if (user == null) {
                 try {
@@ -47,14 +44,14 @@ public class App extends TelegramLongPollingBot {
                 } catch (TelegramApiException e) {
                     e.printStackTrace();
                 }
-                manager.persist(new User(update.getMessage().getChatId(), null, null));
+                connector.getUserService().save(new User(update.getMessage().getChatId(), null, null));
             } else if (user.getLogin() == null || user.getPassword() == null) { // запись логина и пароля
 
                 String[] loginAndPassword = update.getMessage().getText().split(" ");
                 user.setLogin(loginAndPassword[0]);
                 user.setPassword(loginAndPassword[1]);
 
-                manager.persist(user);
+                connector.getUserService().save(user);
 
                 try {
                     execute(new SendMessage(update.getMessage().getChatId(),
@@ -82,11 +79,10 @@ public class App extends TelegramLongPollingBot {
                 post.setPhoto(new File("./images/" + update.getMessage().getPhoto().get(0).getFileId() + ".jpg").getPath());
                 user.addPost(post);
 
-                manager.persist(post);
-                manager.persist(user);
+                connector.getPostService().save(post);
+                connector.getUserService().save(user);
             }
-            manager.getTransaction().commit();
-            manager.close();
+            connector.endTransaction();
     }
 
     @Override
