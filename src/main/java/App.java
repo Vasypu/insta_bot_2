@@ -13,11 +13,20 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException;
 import javax.persistence.EntityManagerFactory;
 import java.io.File;
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class App extends TelegramLongPollingBot {
     private DatabaseConnector connector;
 
     public App(DatabaseConnector connector) { this.connector = connector; }
+
+    ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(5);
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -25,6 +34,7 @@ public class App extends TelegramLongPollingBot {
         connector.startTransaction();
         User user = connector.getUserService().findById(userId);
         System.out.println("Message " + update.getMessage().getText());
+        System.out.println("Caption " + update.getMessage().getCaption());
         if (user == null) {
             try {
                 execute(new SendMessage(update.getMessage().getChatId(),
@@ -43,7 +53,8 @@ public class App extends TelegramLongPollingBot {
 
             try {
                 execute(new SendMessage(update.getMessage().getChatId(),
-                        "Все работает! Теперь вы можете присылать нам текст/изображение для Instagram (в одном сообщении)"));
+                        "Все работает! Теперь вы можете присылать нам текст, изображение и дату публикации" +
+                                "(формат: чч:мм дд:ММ.гггг, в начале изображения) для Instagram (в одном сообщении)"));
             } catch (TelegramApiException e) {
                 e.printStackTrace();
             }
@@ -62,8 +73,26 @@ public class App extends TelegramLongPollingBot {
                 System.err.println(e.getMessage());
             }
 
+            SimpleDateFormat parser = new SimpleDateFormat("hh:mm dd.MM.yyyy");
+            Date datePost = null;
+            try {
+                datePost = parser.parse(update.getMessage().getCaption().split("\n")[0]);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+
+            Runnable sendToInstagram = () -> {
+                System.out.println("Hello from scheduler");
+                // здесь необходимо подключить библиотек Instagram4j
+            };
+
+            scheduler.schedule(sendToInstagram, datePost.getTime() - System.currentTimeMillis(),
+                    TimeUnit.MILLISECONDS);
+
             Post post = new Post();
-            post.setTitle(update.getMessage().getCaption());
+            post.setDate(datePost);
+            post.setTitle(update.getMessage().getCaption().replace(update.getMessage().getCaption().split("\n")[0] + "\n",
+                    ""));
             post.setPhoto(new File("./images/" + update.getMessage().getPhoto().get(0).getFileId() + ".jpg").getPath());
             user.addPost(post);
 

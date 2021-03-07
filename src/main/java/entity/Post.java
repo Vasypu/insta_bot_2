@@ -3,6 +3,7 @@ package entity;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import java.util.Date;
 
 @Entity
 public class Post {
@@ -13,6 +14,7 @@ public class Post {
     private String title;
     private String photo;
     private String geo;
+    private Date date;
 
     public Post() {}
 
@@ -31,4 +33,8 @@ public class Post {
     public Integer getId() { return id; }
 
     public void setId(Integer id) { this.id = id; }
+
+    public Date getDate() { return date; }
+
+    public void setDate(Date date) { this.date = date; }
 }
